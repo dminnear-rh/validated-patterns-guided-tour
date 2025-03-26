@@ -1,0 +1,2 @@
+image: hashicorp/http-echo:latest
+containerPort: 5678

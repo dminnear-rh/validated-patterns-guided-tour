@@ -1,0 +1,30 @@
+clusterGroup:
+  name: hub
+  namespaces:
+    - pattern-git-repo
+    - bitnami-helm-repo
+    - external-git-repo
+  projects:
+    - pattern-git-repo
+    - bitnami-helm-repo
+    - external-git-repo
+  applications:
+    pattern-git-repo:
+      name: pattern-git-repo
+      namespace: pattern-git-repo
+      project: pattern-git-repo
+      path: simple-chart
+    bitnami-helm-repo:
+      name: bitnami-helm-repo
+      namespace: bitnami-helm-repo
+      project: bitnami-helm-repo
+      chart: nginx
+      chartVersion: 19.0.2
+      repoURL: registry-1.docker.io/bitnamicharts
+    external-git-repo:
+      name: external-git-repo
+      namespace: external-git-repo
+      project: external-git-repo
+      path: bitnami/nginx
+      repoURL: https://github.com/bitnami/charts
+      chartVersion: main
