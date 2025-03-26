@@ -1,111 +1,114 @@
-# Chapter 1 - Helm Charts in Patterns
+# Chapter 2 - Helm Charts and Their Values
 
-Congratulations! You've already deployed your first pattern—even though it's
-currently an empty one. In this chapter, we'll build upon this foundation by
-deploying our first real application using Helm charts.
+In this chapter, we'll dive deeper into how the Validated Patterns framework
+manages Helm chart values through value files, giving you granular control over
+your deployments.
 
-This guide assumes you're already familiar with Helm basics. If you're new to
-Helm or would like a quick refresher, check out the official
-[Chart Template Guide](https://helm.sh/docs/chart_template_guide/getting_started/)
-to get comfortable with the concepts we'll use in this chapter.
+## Automatic Value Files
 
-## Deploying Local Helm Charts
+First, let's explore the value files automatically included by the Validated
+Patterns framework. We previously encountered one of these automatic value
+files: `values-<cluster_group>.yaml`. For example, in our pattern, the cluster
+group is named `hub`, making the corresponding file `values-hub.yaml`.
 
-We'll start by deploying a very simple Helm chart stored locally within our
-pattern repository. The chart we'll use for this example is called
-[simple-chart](./simple-chart/). This chart has just one configurable value
-(the container image to deploy) and creates a simple deployment with a single
-replica in your OpenShift cluster.
+If you inspect the manifests of any application deployed by ArgoCD in the
+previous chapter, you'll see that certain value files were automatically applied
+based on your specific OpenShift cluster's characteristics. For instance, if
+your cluster was deployed on AWS using OpenShift version 4.17, the following
+value files would automatically be included:
 
-Take a moment to examine the [values-hub.yaml](./values-hub.yaml) file in your
-repository. Notice the resources labeled `pattern-git-repo`. These resources
-include a namespace, project, and ArgoCD application that instruct ArgoCD how to
-deploy the chart. Because our chart resides within our pattern Git repository,
-the path provided to the ArgoCD application is relative to the root directory of
-the repository itself.
+- `values-global.yaml`
+- `values-hub.yaml`
+- `values-AWS.yaml`
+- `values-AWS-4.17.yaml`
+- `values-AWS-hub.yaml`
+- `values-4.17-hub.yaml`
 
-## Deploying Helm Charts from Repositories
+The [Validated Patterns Workshop](https://play.validatedpatterns.io/vp-workshop/main/5_validatedpatterns/consumingPatterns-valuesFiles.html#values)
+provides an excellent visual representation of these automatically applied
+value files, shown below:
 
-Helm charts don't always have to reside in your patterns's Git repository;
-you can also deploy charts directly from Helm repositories. For example, in
-the same [values-hub.yaml](./values-hub.yaml) file, you'll see an example of
-deploying the popular Nginx chart directly from Bitnami's Helm repository. The
-corresponding resources are named `bitnami-helm-repo`, clearly separating them
-from our locally stored chart deployment.
+![](./imgs/values-types.png)
 
-## Deploying Helm Charts from External Git Repositories
+In this example, `dev` and `prod` represent different cluster groups, similar
+to our `hub` cluster group. This flexibility allows you to precisely target
+conditions for when certain values are applied, streamlining your configuration
+management.
 
-You've learned how to deploy Helm charts directly from Helm repositories and
-from the same Git repository as your pattern. But Validated Patterns also
-support deploying Helm charts from external Git repositories, providing
-additional flexibility.
+## Using Value Files in Practice
 
-Take a look at the resources named `external-git-repo` in
-[values-hub.yaml](./values-hub.yaml). You'll notice that in addition to the
-standard fields (such as namespace, project, and ArgoCD application), we specify:
+Now that we've identified the automatically included value files, how can we
+leverage them to control Helm chart deployments?
 
-- **`repoURL`**: The URL pointing directly to the external Git repository
-- containing the Helm chart.
-- **`chartVersion`**: Currently represents the branch name of the Git
-  repository containing the chart. (Note: This naming can be slightly confusing,
-  and we're planning to improve the clarity of this field in future releases of
-  the clustergroup chart.)
+Suppose you add the following configuration to one of your value files listed
+above:
 
-Using external Git repositories for Helm charts is especially useful when
-collaborating across multiple teams or when leveraging shared, reusable
-infrastructure maintained externally.
+```yaml
+image: busybox:stable
+```
 
-## Updating and Redeploying Our Pattern
+This configuration would cause our simple Helm chart (from Chapter 1) to deploy
+the `busybox` image instead of the previously used `http-echo` image. However,
+this approach raises a concern: what if another Helm chart also references a
+value called `image`? In that scenario, both charts would unintentionally
+consume the same `image` value, leading to unexpected deployments.
 
-Now that you've seen the changes, let's redeploy our updated pattern. Run the
-following command:
+Sometimes, sharing values across charts is beneficial. For example, in the
+Multicloud GitOps Pattern, charts like
+[config-demo](https://github.com/validatedpatterns/multicloud-gitops/blob/main/charts/all/config-demo/values.yaml)
+and [hello-world](https://github.com/validatedpatterns/multicloud-gitops/blob/main/charts/all/hello-world/values.yaml)
+both utilize a common value named `global.hubClusterDomain`. However, other
+values—such as replica counts—should typically remain distinct.
+
+To address this, many charts "namespace" their values to prevent unintended
+overlaps. For instance, in the
+[Medical Diagnosis Pattern](https://github.com/validatedpatterns/medical-diagnosis),
+the Kafka chart namespaces its values, referencing them as
+`.Values.kafka.replicas`. This technique helps isolate values, but it
+requires additional configuration in your Helm charts, potentially introducing
+redundancy.
+
+Additionally, namespacing values does not solve the issue of deploying multiple
+instances of the same Helm chart with different configurations within one
+pattern—each instance would necessarily share the same values.
+
+## Application-Specific Values
+
+To avoid value conflicts and gain precise control over your deployments, you can
+specify values or entire value files directly at the application level. The
+Validated Patterns framework allows this using special fields:
+
+- **`extraValueFiles`**: Lets you pass additional value files explicitly for
+  a specific application.
+- **`overrides`**: Enables directly overriding specific Helm values without
+  creating separate value files.
+
+In [values-hub.yaml](./values-hub.yaml), you'll find examples demonstrating
+how `extraValueFiles` and `overrides` are used to directly modify
+application-specific values like the deployed image or container ports. This
+approach provides a clear, collision-free method to customize each
+application's deployment within your pattern.
+
+Leveraging these mechanisms ensures precise control over your deployments,
+maintaining flexibility and clarity within your patterns.
+
+## Redeploying Your Updated Pattern
+
+After making your changes to value files, you'll need to redeploy your pattern.
+To do this, update your pattern's Git revision using the following command:
 
 ```sh
 oc edit patt validated-patterns-guided-tour -n openshift-operators
 ```
 
-In the editor, update the `spec.gitSpec.targetRevision` value to `chapter-1`.
-Save and close the editor to trigger an update.
+In the editor, set `spec.gitSpec.targetRevision` to `chapter-2`. Save and
+close the editor to trigger the update.
 
-After a few minutes, you'll find a new link in the "nine dots" menu labeled
-`Hub ArgoCD`. Click this link to view and monitor the deployment of your
-applications. Note that the initial synchronization may take a couple of minutes.
-
-The original `Example ArgoCD` instance won't be deleted automatically. You can
-clean it up by running:
-
-```sh
-oc delete argocd -n validated-patterns-guided-tour-example example-gitops
-oc delete ns validated-patterns-guided-tour-example
-```
-
-> **Note:** We're currently investigating the clean removal of old Argo
-> instances from the "nine dots" menu.
-
-## Understanding the `values-hub.yaml` File
-
-Since this is your first application deployment through a pattern, let's briefly
-discuss the role of the `values-hub.yaml` file.
-
-When you initially created your pattern, you defined a `clusterGroupName`—in our
-case, set as `hub`. The Validated Patterns Operator automatically looks for a
-corresponding values file (`values-hub.yaml`) based on the `clusterGroupName`
-you provided. This file determines what should be deployed to the matching
-cluster group.
-
-If, for instance, you had created your pattern with a `clusterGroupName` of
-`mycluster`, the operator would instead look for a file named
-`values-mycluster.yaml` to determine what to deploy.
-
-The operator isn't performing magic behind the scenes. Instead, it leverages the
-[clustergroup-chart](https://github.com/validatedpatterns/clustergroup-chart/tree/main)
-and uses your values file (`values-hub.yaml`) to create the necessary resources
-like ArgoCD instances, namespaces, projects, and applications. Later, we'll
-explore more advanced usage, including deploying subscriptions and other complex
-resources.
+Check the "nine dots" menu in your OpenShift console to view the progress of
+your deployment. Note that synchronization might take a few minutes.
 
 ## Coming Up Next
 
-In the next chapter, we'll explore how to configure and set custom values for
-our Helm charts, further personalizing your deployments. You can find Chapter 2
-[here](https://github.com/dminnear-rh/validated-patterns-guided-tour/tree/chapter-2).
+In [Chapter 3](https://github.com/dminnear-rh/validated-patterns-guided-tour/tree/chapter-2),
+we'll explore subscriptions—another powerful mechanism within
+Validated Patterns that helps you manage deployments of Operators.
