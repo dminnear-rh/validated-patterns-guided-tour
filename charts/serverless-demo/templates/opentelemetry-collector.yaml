@@ -1,0 +1,21 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: simple-collector
+  namespace: serverless-demo
+spec:
+  mode: deployment
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+          http:
+    exporters:
+      otlphttp:
+        endpoint: "http://tempo-server.openshift-tempo-operator.svc.cluster.local:4318"
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [otlphttp]

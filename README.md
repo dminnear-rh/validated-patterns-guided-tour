@@ -1,114 +1,68 @@
-# Chapter 2 - Helm Charts and Their Values
+# Chapter 3 - Subscriptions in Validated Patterns
 
-In this chapter, we'll dive deeper into how the Validated Patterns framework
-manages Helm chart values through value files, giving you granular control over
-your deployments.
+In the previous chapters, we've taken a look at deploying Helm charts as
+Argo CD applications. These applications are the bread and the butter of
+Validated Patterns comes in the form of Operator subscriptions. These
+subscriptions are what really make up the magic as you'll see with the simple
+pattern demonstrated in this chapter.
 
-## Automatic Value Files
+## A Brief Introduction to our Pattern
 
-First, let's explore the value files automatically included by the Validated
-Patterns framework. We previously encountered one of these automatic value
-files: `values-<cluster_group>.yaml`. For example, in our pattern, the cluster
-group is named `hub`, making the corresponding file `values-hub.yaml`.
+Before we dive into subscriptions, let's discuss what this pattern is composed of.
+This is our first real pattern, one that's more than just a deploy of a Helm
+chart and the first we've created as part of this tutorial that accomplishes the
+aim of being a "living architecture". The major components of our pattern are:
 
-If you inspect the manifests of any application deployed by ArgoCD in the
-previous chapter, you'll see that certain value files were automatically applied
-based on your specific OpenShift cluster's characteristics. For instance, if
-your cluster was deployed on AWS using OpenShift version 4.17, the following
-value files would automatically be included:
+- **OpenShift Serverless** for scalable serverless deployments.
+- **OpenShift Service Mesh 3** for traffic management without sidecars.
+- **Kiali** for observability and service visualization.
+- **Tempo** and **OpenTelemetry** for distributed tracing.
 
-- `values-global.yaml`
-- `values-hub.yaml`
-- `values-AWS.yaml`
-- `values-AWS-4.17.yaml`
-- `values-AWS-hub.yaml`
-- `values-4.17-hub.yaml`
+The overall purpose of this pattern is to demonstrate a holistic managed solution
+for serverless architectures.
 
-The [Validated Patterns Workshop](https://play.validatedpatterns.io/vp-workshop/main/5_validatedpatterns/consumingPatterns-valuesFiles.html#values)
-provides an excellent visual representation of these automatically applied
-value files, shown below:
+## Adding Subscriptions to our Pattern
 
-![](./imgs/values-types.png)
+If you take a look at [values-hub.yaml](./values-hub.yaml) at the `subscriptions`
+block you can see how simple it is to create an Operator subscription. For Red Hat
+operators like we are using, all you actually need to create a subscription is
+the correct name. (You can always install the operator manually through Operator
+Hub and check the name of the subscription that was created to be sure what
+this name is.)
 
-In this example, `dev` and `prod` represent different cluster groups, similar
-to our `hub` cluster group. This flexibility allows you to precisely target
-conditions for when certain values are applied, streamlining your configuration
-management.
-
-## Using Value Files in Practice
-
-Now that we've identified the automatically included value files, how can we
-leverage them to control Helm chart deployments?
-
-Suppose you add the following configuration to one of your value files listed
-above:
+If you only provide the name, as we did for the subscription `servicemeshoperator3`
+then some default values are assumed. The subscripion we created with just the name
+is equivalent to:
 
 ```yaml
-image: busybox:stable
+servicemesh:
+  name: servicemeshoperator3
+  namespace: openshift-operators
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: {{ $.Values.global.options.installPlanApproval }} # defaults to Automatic if you don't set it
 ```
 
-This configuration would cause our simple Helm chart (from Chapter 1) to deploy
-the `busybox` image instead of the previously used `http-echo` image. However,
-this approach raises a concern: what if another Helm chart also references a
-value called `image`? In that scenario, both charts would unintentionally
-consume the same `image` value, leading to unexpected deployments.
+In addition, you may optionally set the `channel` field and the `csv` field to
+specify exactly which release channel and version of the operator you intend to
+install. In the case of the OpenShift Serverless Operator, you may have noticed
+we explicitly chose a namespace other than the default of `openshift-operators`.
+In this case, we are choosing to use the namespace recommended by the operator.
+This is the recommended best practice when possible and another reason it's useful
+to install operators from Operator Hub as you develop patterns-to reference the
+recommendations of the creator of the operator.
 
-Sometimes, sharing values across charts is beneficial. For example, in the
-Multicloud GitOps Pattern, charts like
-[config-demo](https://github.com/validatedpatterns/multicloud-gitops/blob/main/charts/all/config-demo/values.yaml)
-and [hello-world](https://github.com/validatedpatterns/multicloud-gitops/blob/main/charts/all/hello-world/values.yaml)
-both utilize a common value named `global.hubClusterDomain`. However, other
-values—such as replica counts—should typically remain distinct.
+## The Applications Included in this Pattern
 
-To address this, many charts "namespace" their values to prevent unintended
-overlaps. For instance, in the
-[Medical Diagnosis Pattern](https://github.com/validatedpatterns/medical-diagnosis),
-the Kafka chart namespaces its values, referencing them as
-`.Values.kafka.replicas`. This technique helps isolate values, but it
-requires additional configuration in your Helm charts, potentially introducing
-redundancy.
+While this chapter is meant to focus on subscriptions, we are deploying
+a complete pattern to demonstrate the power included with our simple
+subscription declaration. To that end, let's take a quick glance over
+the applications we're deploying alongside the Operators of our pattern:
 
-Additionally, namespacing values does not solve the issue of deploying multiple
-instances of the same Helm chart with different configurations within one
-pattern—each instance would necessarily share the same values.
-
-## Application-Specific Values
-
-To avoid value conflicts and gain precise control over your deployments, you can
-specify values or entire value files directly at the application level. The
-Validated Patterns framework allows this using special fields:
-
-- **`extraValueFiles`**: Lets you pass additional value files explicitly for
-  a specific application.
-- **`overrides`**: Enables directly overriding specific Helm values without
-  creating separate value files.
-
-In [values-hub.yaml](./values-hub.yaml), you'll find examples demonstrating
-how `extraValueFiles` and `overrides` are used to directly modify
-application-specific values like the deployed image or container ports. This
-approach provides a clear, collision-free method to customize each
-application's deployment within your pattern.
-
-Leveraging these mechanisms ensures precise control over your deployments,
-maintaining flexibility and clarity within your patterns.
-
-## Redeploying Your Updated Pattern
-
-After making your changes to value files, you'll need to redeploy your pattern.
-To do this, update your pattern's Git revision using the following command:
-
-```sh
-oc edit patt validated-patterns-guided-tour -n openshift-operators
-```
-
-In the editor, set `spec.gitSpec.targetRevision` to `chapter-2`. Save and
-close the editor to trigger the update.
-
-Check the "nine dots" menu in your OpenShift console to view the progress of
-your deployment. Note that synchronization might take a few minutes.
-
-## Coming Up Next
-
-In [Chapter 3](https://github.com/dminnear-rh/validated-patterns-guided-tour/tree/chapter-2),
-we'll explore subscriptions—another powerful mechanism within
-Validated Patterns that helps you manage deployments of Operators.
+* [The `serverless` chart](./charts/serverless-demo/) consists of the components:
+  * [knative-service.yaml](./charts/serverless-demo/templates/knative-service.yaml): a simple Knative Serving service instrumented for tracing
+  * [opentelemetry-collector.yaml](./charts/serverless-demo/templates/opentelemetry-collector.yaml): a basic OpenTelemetry collector with Tempo backend for tracing
+  * [traffic-generator.yaml](./charts/serverless-demo/templates/traffic-generator.yaml): a simple traffic-generator job to send requests automatically to our knatic service
+* [The `servicemesh` chart](./charts/servicemesh/) consists of the components:
+  * [servicemeshcontrolplane.yaml](./charts/servicemesh/templates/servicemeshcontrolplane.yaml): the configuration for the Istio control plane pods
+  * [servicemeshcni.yaml](./charts/servicemesh/templates/servicemeshcni.yaml): Istio’s Container Network Interface (CNI) plugin

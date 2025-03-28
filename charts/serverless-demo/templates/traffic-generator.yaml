@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: traffic-generator
+  namespace: serverless-demo
+spec:
+  template:
+    spec:
+      containers:
+        - name: traffic-gen
+          image: curlimages/curl
+          command:
+            - /bin/sh
+            - -c
+            - |
+              while true; do
+                curl http://traced-serverless.serverless-demo.svc.cluster.local
+                sleep 5
+              done
+      restartPolicy: OnFailure

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: serverless-demo
+description: Components for demoing the serverless capability of this pattern
+version: 0.1.0
+appVersion: "1.0"

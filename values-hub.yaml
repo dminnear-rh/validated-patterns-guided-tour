@@ -1,17 +1,51 @@
 clusterGroup:
   name: hub
+
   namespaces:
-    - pattern-git-repo
+    - serverless-demo
+    - istio-system
+    - openshift-serverless:
+        operatorGroup: true
+        targetNamespaces:
+    - openshift-tempo-operator:
+        operatorGroup: true
+        targetNamespaces:
+    - openshift-opentelemetry-operator:
+        operatorGroup: true
+        targetNamespaces:
+
+  subscriptions:
+    serverless:
+      name: serverless-operator
+      namespace: openshift-serverless
+
+    servicemesh3:
+      name: servicemeshoperator3
+
+    kiali:
+      name: kiali-ossm
+
+    tempo:
+      name: tempo-product
+      namespace: openshift-tempo-operator
+
+    opentelemetry:
+      name: opentelemetry-product
+      namespace: openshift-opentelemetry-operator
+
   projects:
-    - pattern-git-repo
+    - serverless-demo
+    - servicemesh
+
   applications:
-    pattern-git-repo:
-      name: pattern-git-repo
-      namespace: pattern-git-repo
-      project: pattern-git-repo
-      path: simple-chart
-      extraValueFiles:
-        - /values-pattern-git-repo.yaml
-      overrides:
-        - name: containerPort
-          value: 8080
+    serverless:
+      name: serverless
+      namespace: serverless-demo
+      project: serverless-demo
+      path: charts/serverless-demo
+
+    servicemesh:
+      name: servicemesh
+      namepace: istio-system
+      project: servicemesh
+      path: charts/servicemesh
